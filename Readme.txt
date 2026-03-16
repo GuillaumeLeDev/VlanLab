@@ -7,6 +7,7 @@ Ce projet a été réalisé dans le cadre de ma préparation au Master of Scienc
 Objectif : Permettre la communication sécurisée entre deux départements (Comptabilité et Marketing) répartis sur deux commutateurs distincts, tout en isolant les flux au niveau de la couche 2.
 
  Topologie Réseau
+ 
 
 
 Note : [Insère ici le lien de l'image que tu auras uploadée dans ton dépôt GitHub]
