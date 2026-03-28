@@ -1,34 +1,120 @@
+# 🔀 Lab VLAN & Routage Inter-VLAN (Router-on-a-Stick)
 
+> Simulation d'une architecture réseau d'entreprise multisites avec segmentation VLAN et routage centralisé — réalisé sur Cisco Packet Tracer.
 
- Présentation du Projet
+## 🎯 Objectifs du projet
 
-Ce projet a été réalisé dans le cadre de ma préparation au Master of Science Cloud chez EPITECH Lyon. Il simule une architecture réseau d'entreprise multisites, mettant en œuvre la segmentation par VLAN et le routage centralisé.
+Simuler un réseau d'entreprise où deux départements (Comptabilité et Marketing) doivent :
 
-Objectif : Permettre la communication sécurisée entre deux départements (Comptabilité et Marketing) répartis sur deux commutateurs distincts, tout en isolant les flux au niveau de la couche 2.
+1. **Être isolés au niveau couche 2** (segmentation par VLAN)
+2. **Communiquer entre eux via un routeur** (routage inter-VLAN)
+3. **Fonctionner sur deux switches distincts** reliés par un lien trunk
 
- Topologie Réseau
- 
+## 🏗️ Architecture réseau
 
+```
+                    ┌──────────────┐
+                    │   Router0    │
+                    │              │
+                    │  Gig0/0/0.10 │ ← 192.168.10.254 (GW VLAN 10)
+                    │  Gig0/0/0.20 │ ← 192.168.20.254 (GW VLAN 20)
+                    └──────┬───────┘
+                           │ Gig0/1 (trunk)
+                           │
+                    ┌──────┴───────┐          Trunk 802.1Q          ┌──────────────┐
+                    │   Switch1    │◄────────────Fa0/4──────────────►│   Switch3    │
+                    │  2960-24TT   │         VLAN 10,20,99          │    2960      │
+                    └──┬───────┬───┘                                └──┬───────┬───┘
+                       │       │                                       │       │
+                    Fa0/2    Fa0/11                                  Fa0/10   Fa0/20
+                       │       │                                       │       │
+                 ┌─────┴──┐ ┌──┴──────┐                         ┌─────┴──┐ ┌──┴──────┐
+                 │  PC0   │ │Laptop1  │                         │  PC1   │ │Laptop0  │
+                 │VLAN 10 │ │VLAN 20  │                         │VLAN 10 │ │VLAN 20  │
+                 │ .10.1  │ │ .20.1   │                         │ .10.2  │ │ .20.2   │
+                 └────────┘ └─────────┘                         └────────┘ └─────────┘
+                  Compta     Marketing                           Compta     Marketing
+```
 
-Note : [Insère ici le lien de l'image que tu auras uploadée dans ton dépôt GitHub]
+![Topologie Packet Tracer](screenshots/01-topologie-reseau.jpg)
+*Topologie complète dans Cisco Packet Tracer — 1 routeur, 2 switches, 4 postes*
 
-Technologies & Protocoles
+## 📋 Plan d'adressage
 
-Segmentation : VLAN 10 (Comptabilité), VLAN 20 (Marketing), VLAN 99 (Natif).
+| Équipement | VLAN | Interface | Adresse IP | Masque | Passerelle |
+|------------|------|-----------|------------|--------|------------|
+| Router0 | 10 | Gig0/0/0.10 | 192.168.10.254 | 255.255.255.0 | — |
+| Router0 | 20 | Gig0/0/0.20 | 192.168.20.254 | 255.255.255.0 | — |
+| PC0 | 10 (Compta) | Fa0 | 192.168.10.1 | 255.255.255.0 | 192.168.10.254 |
+| PC1 | 10 (Compta) | Fa0 | 192.168.10.2 | 255.255.255.0 | 192.168.10.254 |
+| Laptop1 | 20 (Marketing) | Fa0 | 192.168.20.1 | 255.255.255.0 | 192.168.20.254 |
+| Laptop0 | 20 (Marketing) | Fa0 | 192.168.20.2 | 255.255.255.0 | 192.168.20.254 |
 
-Transport : Trunking IEEE 802.1Q pour le transport multi-VLAN entre commutateurs.
+## 📋 Stack technique
 
-Routage : Router-on-a-Stick (Sous-interfaces virtuelles sur un lien unique).
+| Composant | Détail |
+|-----------|--------|
+| Simulateur | Cisco Packet Tracer |
+| Routeur | Cisco (Router-on-a-Stick) |
+| Switches | Cisco 2960 (x2) |
+| VLANs | VLAN 10 (Comptabilité), VLAN 20 (Marketing), VLAN 99 (Natif) |
+| Trunking | IEEE 802.1Q |
+| Routage | Inter-VLAN via sous-interfaces |
+| Adressage | IPv4 statique |
 
-Adressage : IPv4 statique avec gestion des passerelles par défaut (Default Gateways).
+## 🔧 Étapes clés de configuration
 
-Extraits de Configuration (Cisco IOS)
+### 1. Configuration des VLANs sur les switches
 
-1. Configuration du Routeur (Passerelles Inter-VLAN)
+Création des VLANs 10 (Comptabilité), 20 (Marketing) et 99 (Natif) sur les deux switches, puis affectation des ports aux bons VLANs :
 
-Le routeur agit comme le cerveau du réseau, traitant les paquets étiquetés provenant des différents VLANs.
+```
+vlan 10
+ name vlan_10
+vlan 20
+ name vlan_20
+vlan 99
+ name Native
+!
+interface FastEthernet0/2
+ switchport mode access
+ switchport access vlan 10
+!
+interface FastEthernet0/11
+ switchport mode access
+ switchport access vlan 20
+```
 
-``
+![VLANs Switch 1](screenshots/03-config-switch1-vlans.png)
+*Switch 1 — VLAN 10 (Fa0/2, Fa0/10), VLAN 20 (Fa0/11), VLAN 99 (Natif)*
+
+![VLANs Switch 2](screenshots/04-config-switch2-vlans.png)
+*Switch 3 — VLAN 10 (Fa0/10), VLAN 20 (Fa0/11, Fa0/20)*
+
+### 2. Configuration du Trunking 802.1Q
+
+Les liens entre switches et entre switch-routeur sont configurés en trunk pour transporter les trames étiquetées de tous les VLANs :
+
+```
+interface FastEthernet0/4
+ description Lien inter-switch (trunk)
+ switchport mode trunk
+ switchport trunk native vlan 99
+!
+interface GigabitEthernet0/1
+ description Uplink vers Routeur
+ switchport mode trunk
+ switchport trunk native vlan 99
+```
+
+![Status Trunk](screenshots/05-trunk-status.png)
+*Ports trunk actifs — Fa0/4 (inter-switch) et Gig0/1 (vers routeur), encapsulation 802.1Q, VLAN natif 99*
+
+### 3. Routage Inter-VLAN (Router-on-a-Stick)
+
+Le routeur utilise des sous-interfaces sur un seul lien physique pour router le trafic entre les VLANs. Chaque sous-interface est la passerelle par défaut de son VLAN :
+
+```
 interface GigabitEthernet0/0/0.10
  description Gateway VLAN 10 (Comptabilite)
  encapsulation dot1Q 10
@@ -38,39 +124,71 @@ interface GigabitEthernet0/0/0.20
  description Gateway VLAN 20 (Marketing)
  encapsulation dot1Q 20
  ip address 192.168.20.254 255.255.255.0
-``
+```
 
-2. Configuration du Switch (Trunking & Affectation)
-``
-Le port montant (Uplink) vers le routeur et le lien inter-switch sont configurés en mode Trunk pour laisser passer tous les tags VLAN.
+![Config Routeur](screenshots/02-config-routeur.png)
+*Sous-interfaces du routeur — .10 (192.168.10.254) et .20 (192.168.20.254) UP*
 
-interface GigabitEthernet0/1
- description Uplink vers Routeur
- switchport mode trunk
- switchport trunk native vlan 99
-!
-interface FastEthernet0/10
- description Acces PC0 (VLAN 10)
- switchport mode access
- switchport access vlan 10
+## ✅ Tests de validation
 
+### Ping inter-VLAN (Comptabilité → Marketing)
 
- Diagnostic et Résolution (Troubleshooting)``
+Depuis un PC du VLAN 10 (Comptabilité), ping vers un PC du VLAN 20 (Marketing) — le trafic doit passer par le routeur :
 
-Lors du déploiement, j'ai identifié et résolu plusieurs problématiques courantes :
+![Ping inter-VLAN](screenshots/06-ping-inter-vlan.png)
+*Ping de 192.168.10.x vers 192.168.20.2 — succès, le routage inter-VLAN fonctionne*
 
-Mismatch de VLAN : Correction de l'affectation des ports physiques pour correspondre au plan d'adressage logique.
+### Ping inter-switch (même VLAN, switches différents)
 
-Encapsulation : Vérification de l'activation du protocole dot1Q sur les sous-interfaces du routeur.
+Depuis PC0 (192.168.10.1, Switch 1) vers PC1 (192.168.10.2, Switch 3) — vérifie que le trunk transporte bien les trames VLAN entre switches :
 
-Connectivité : Validation via des tests de ping et de traceroute entre les différents sous-réseaux.
+![Ping inter-switch](screenshots/07-ping-inter-switch.png)
+*Ping 192.168.10.1 → 192.168.10.2 — 0% perte, TTL=128, le trunk fonctionne*
 
-À propos de moi
+### Traceroute inter-VLAN
 
-Je suis Guillaume Brunel, étudiant en Master Cloud à Epitech Lyon. Je recherche activement une alternance en Ingénierie Réseaux & Systèmes à partir de mars 2026.
+Le traceroute prouve que le trafic entre VLANs passe bien par le routeur (Router-on-a-Stick) :
 
-LinkedIn : linkedin.com/in/guillaume-dev
+![Traceroute](screenshots/08-traceroute.png)
+*Traceroute VLAN 10 → VLAN 20 : hop 1 = 192.168.10.254 (routeur), hop 2 = 192.168.20.2 (destination)*
 
-Portfolio : github.com/GuillaumeLeDev
+> **Note** : le hop 1 (`192.168.10.254`) est la sous-interface du routeur côté VLAN 10. C'est la preuve que le trafic inter-VLAN transite par le routeur — il n'y a pas de communication directe entre VLANs au niveau des switches (isolation couche 2 respectée).
 
-Ce lab a été conçu sur Cisco Packet Tracer.
+## 🚧 Difficultés rencontrées et solutions
+
+### Mismatch de VLAN
+**Problème** : certains PCs ne communiquaient pas car leurs ports physiques n'étaient pas assignés au bon VLAN.
+**Diagnostic** : vérification avec `show vlan brief` pour identifier les ports mal affectés.
+**Solution** : correction de l'affectation des ports avec `switchport access vlan [ID]`.
+
+### Encapsulation dot1Q
+**Problème** : le routage inter-VLAN ne fonctionnait pas initialement.
+**Diagnostic** : les sous-interfaces du routeur n'avaient pas l'encapsulation dot1Q activée.
+**Solution** : ajout de `encapsulation dot1Q [VLAN_ID]` sur chaque sous-interface avant l'assignation d'IP.
+
+### Validation de connectivité
+**Méthode** : tests systématiques par ping et traceroute entre les différents sous-réseaux pour valider chaque étape de la configuration.
+
+## 📚 Ce que j'ai appris
+
+- **Segmentation VLAN** : isoler les flux réseau au niveau couche 2 pour sécuriser et organiser le trafic
+- **Trunking 802.1Q** : transporter plusieurs VLANs sur un seul lien physique grâce à l'étiquetage des trames
+- **Router-on-a-Stick** : utiliser des sous-interfaces virtuelles sur un routeur pour assurer le routage inter-VLAN sans multiplier les interfaces physiques
+- **VLAN natif** : comprendre le rôle du VLAN 99 comme VLAN natif pour le trafic non étiqueté sur les trunks
+- **Diagnostic Cisco IOS** : utiliser `show vlan brief`, `show interfaces trunk`, `show ip interface brief` pour identifier et résoudre les problèmes
+
+## 🛠️ Compétences démontrées
+
+`VLAN` · `Trunking 802.1Q` · `Router-on-a-Stick` · `Routage Inter-VLAN` · `Cisco IOS` · `Cisco Packet Tracer` · `Segmentation réseau` · `Adressage IPv4` · `Diagnostic réseau` · `Configuration switches & routeurs`
+
+## 📌 Évolutions possibles
+
+- [ ] Ajouter un troisième département (VLAN 30 — RH) avec des règles ACL pour restreindre l'accès
+- [ ] Mettre en place du DHCP sur le routeur pour l'attribution automatique des adresses
+- [ ] Configurer du Port Security sur les switches pour limiter les adresses MAC autorisées
+- [ ] Ajouter un serveur dans une DMZ avec des ACL spécifiques
+- [ ] Implémenter STP (Spanning Tree Protocol) avec un switch racine défini
+
+---
+
+*Projet réalisé dans le cadre de la préparation au Master of Science Cloud à EPITECH Lyon — en recherche d'alternance en administration réseau / sécurité IT.*
